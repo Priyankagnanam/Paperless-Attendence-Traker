@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+
+    body { 
+      font-family: 'Plus Jakarta Sans', sans-serif; 
+      background: #f1f5f9; margin: 0; 
+      display: flex; justify-content: center; align-items: center; min-height: 100vh;
+    }
+
+    .dashboard {
+      background: #ffffff; width: 95%; max-width: 800px;
+      border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+      overflow: hidden; border: 1px solid #e2e8f0;
+    }
+
+    /* Top Stats Bar */
+    .stats-bar {
+      background: #0f172a; color: white; padding: 15px 30px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .stat-item { display: flex; align-items: center; gap: 10px; }
+    .count-badge { background: #3b82f6; padding: 4px 12px; border-radius: 20px; font-weight: 700; font-size: 14px; }
+
+    header { padding: 40px 40px 20px; text-align: left; }
+    h1 { margin: 0; font-size: 24px; color: #1e293b; font-weight: 700; letter-spacing: -0.5px; }
+    p.subtitle { margin: 5px 0 0; color: #64748b; font-size: 14px; font-weight: 500; }
+
+    .form-section { padding: 0 40px 40px; }
+    
+    #liveDate { font-size: 13px; color: #94a3b8; margin-bottom: 30px; display: block; }
+
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
+    .full { grid-column: span 2; }
+
+    label { display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 8px; text-transform: uppercase; }
+    
+    input, select { 
+      width: 100%; padding: 14px; border: 1.5px solid #e2e8f0; border-radius: 10px; 
+      font-size: 15px; box-sizing: border-box; transition: 0.2s; background: #f8fafc;
+    }
+
+    input:focus { border-color: #3b82f6; outline: none; background: #fff; }
+
+    .btn-submit { 
+      width: 100%; padding: 16px; background: #3b82f6; color: white; border: none; 
+      border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer;
+      margin-top: 30px; transition: 0.3s;
+    }
+    .btn-submit:hover { background: #2563eb; transform: translateY(-2px); }
+
+    #msg { margin-top: 20px; padding: 15px; border-radius: 10px; text-align: center; display: none; font-weight: 600; font-size: 14px; }
+    .success { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+    .error { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+  </style>
+</head>
+<body>
+
+  <div class="dashboard">
+    <div class="stats-bar">
+      <div class="stat-item">
+        <span>GCE ERODE—638 316</span>
+      </div>
+      <div class="stat-item">
+        <span>Today Present:</span>
+        <span class="count-badge" id="totalCount">0</span>
+      </div>
+    </div>
+
+    <header>
+      <h1>Student Attendance Management System</h1>
+      <p class="subtitle">Official Digital Register </p>
+    </header>
+
+    <div class="form-section">
+      <span id="liveDate"></span>
+      
+      <form id="attForm" onsubmit="event.preventDefault(); handleForm(this)">
+        <input type="hidden" name="lat" id="lat">
+        <input type="hidden" name="lng" id="lng">
+
+        <div class="grid">
+          <div class="input-group">
+            <label>Full Name</label>
+            <input type="text" name="full_name" placeholder="As per records" required>
+          </div>
+          <div class="input-group">
+            <label>Roll Number</label>
+            <input type="text" name="roll_no" placeholder="Ex: 23IMT38" required>
+          </div>
+          <div class="input-group full">
+            <label>Academic Department</label>
+            <select name="dept" required>
+              <option value="">-- Select Department --</option>
+              <option value="CSE">Computer Science</option>
+              <option value="IT">Information Technology</option>
+              <option value="ECE">Electronics & Communication</option>
+              <option value="EEE">Electrical & Electronics</option>
+              <option value="MECH">Mechanical Eng.</option>
+              <option value="CIVIL">Civil Eng.</option>
+            </select>
+          </div>
+        </div>
+
+        <button type="submit" id="btn" class="btn-submit">Register Attendance</button>
+      </form>
+      <div id="msg"></div>
+    </div>
+  </div>
+
+  <script>
+    window.onload = function() {
+      // Date Setup
+      const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+      document.getElementById('liveDate').innerHTML = "📅 " + new Date().toLocaleDateString('en-US', options);
+      
+      // Get Live Count
+      updateCount();
+
+      // GPS Setup
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(p => {
+          document.getElementById('lat').value = p.coords.latitude;
+          document.getElementById('lng').value = p.coords.longitude;
+        });
+      }
+    };
+
+    function updateCount() {
+      google.script.run.withSuccessHandler(c => {
+        document.getElementById('totalCount').innerText = c;
+      }).getTotalPresent();
+    }
+
+    function handleForm(form) {
+      const btn = document.getElementById('btn');
+      const msg = document.getElementById('msg');
+      btn.disabled = true;
+      btn.innerText = "Submitting...";
+
+      google.script.run.withSuccessHandler(res => {
+        msg.style.display = "block";
+        if(res === "ALREADY_EXISTS") {
+          msg.className = "error";
+          msg.innerHTML = "⚠️ Duplicate Entry: Already marked for today.";
+        } else {
+          msg.className = "success";
+          msg.innerHTML = "✅ Success: Attendance recorded professionally.";
+          form.reset();
+          updateCount(); // Refresh count after submission
+        }
+        btn.disabled = false;
+        btn.innerText = "Register Attendance";
+      }).processForm(form);
+    }
+  </script>
+</body>
+</html>
